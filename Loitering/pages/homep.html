@@ -1,0 +1,232 @@
+<?php
+$host = "localhost";
+$username = "root";
+$password = "";
+$database = "rfid_db";
+$conn = new mysqli($host, $username, $password, $database);
+
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    $tableID = intval($_POST['timer_id']);
+    $action = $_POST['action'];
+
+    if ($action === "start") {
+    $customMinutes = isset($_POST['custom_minutes']) ? intval($_POST['custom_minutes']) : 1;
+    if ($customMinutes <= 0) $customMinutes = 1;
+    $stmt = $conn->prepare("UPDATE timers SET start_time = NOW(), end_time = DATE_ADD(NOW(), INTERVAL ? MINUTE) WHERE table_id = ?");
+    $stmt->bind_param("ii", $customMinutes, $tableID);
+    $stmt->execute();
+    } elseif ($action === "reset") {
+        $stmt = $conn->prepare("UPDATE timers SET start_time = NULL, end_time = NULL WHERE table_id = ?");
+        $stmt->bind_param("i", $tableID);
+        $stmt->execute();
+    } elseif ($action === "add_time") {
+        $stmt = $conn->prepare("UPDATE timers SET end_time = DATE_ADD(end_time, INTERVAL 15 MINUTE) WHERE table_id = ?");
+        $stmt->bind_param("i", $tableID);
+        $stmt->execute();
+    }
+
+    header("Location: control.php");
+    exit;
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Control Panel</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: #f9fafb;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #333;
+    }
+
+    .container {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 240px;
+      background-color: #530b0b;
+      color: white;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 4px 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .logo {
+      font-size: 1.6rem;
+      font-weight: bold;
+      margin-bottom: 30px;
+      text-align: center;
+      letter-spacing: 1px;
+    }
+
+    .nav a {
+      color: white;
+      text-decoration: none;
+      margin: 12px 0;
+      display: block;
+      padding: 12px;
+      border-radius: 6px;
+      transition: background-color 0.3s ease, transform 0.2s ease;
+      font-weight: 600;
+    }
+
+    .nav a:hover {
+      background-color: #db2121b0;
+      transform: scale(1.05);
+    }
+
+    .main {
+      flex-grow: 1;
+      padding: 40px;
+      background-color: #f1f5f9;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .card {
+      background-color:rgba(223, 78, 78, 0.29);
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 1200px;
+      padding: 30px;
+    }
+
+    .card h2 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .timers-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 30px;
+      margin-top: 20px;
+    }
+
+    .timer-box {
+      background-color:rgba(221, 209, 209, 0.43);
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      transition: box-shadow 0.3s ease, transform 0.2s ease;
+    }
+
+    .timer-box h3 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #333;
+    }
+
+    .timer-box:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 10px 16px;
+      font-size: 15px;
+      font-weight: 600;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s ease, transform 0.2s ease;
+      min-width: 100px;
+    }
+
+    .btn:hover {
+      transform: scale(1.05);
+    }
+
+    .btn.green { background-color:rgba(185, 16, 16, 0.71); }
+    .btn.green:hover { background-color: #059669; }
+
+    .btn.orange { background-color:rgba(245, 11, 11, 0.42); }
+    .btn.orange:hover { background-color: #d97706; }
+
+    .btn.blue { background-color:rgba(246, 59, 59, 0.69); }
+    .btn.blue:hover { background-color: #2563eb; }
+
+    .btn.red { background-color: #ef4444; }
+    .btn.red:hover { background-color: #dc2626; }
+
+    @media (max-width: 768px) {
+      .timers-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 480px) {
+      .timers-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        width: 200px;
+        padding: 20px;
+      }
+
+      .card {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <aside class="sidebar">
+      <div class="logo">Control Area</div>
+      <nav class="nav">
+        <a href="home.php">🏠 Dashboard</a>
+        <a href="history.php">📜 History</a>
+        <a href="register.php">ℹ️ Register Area</a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <section class="card">
+        <h2>Table Timer Controls</h2>
+        <div class="timers-grid">
+          <?php for ($i = 1; $i <= 6; $i++): ?>
+            <div class="timer-box">
+              <h3>Table <?= $i ?></h3>
+                <form method="POST" class="btn-group">
+                  <input type="hidden" name="timer_id" value="<?= $i ?>">
+                  <input type="number" name="custom_minutes" placeholder="Min" min="1" style="width: 60px; padding: 6px; border-radius: 6px; border: 1px solid #ccc;">
+                  <button type="submit" name="action" value="start" class="btn green">Start</button>
+                  <button type="submit" name="action" value="reset" class="btn orange">Reset</button>
+                  <button type="submit" name="action" value="add_time" class="btn blue">Add Time</button>
+                </form>
+            </div>
+          <?php endfor; ?>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
